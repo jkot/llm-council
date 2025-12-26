@@ -11,14 +11,18 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 ### Backend Structure (`backend/`)
 
 **`config.py`**
-- Contains `COUNCIL_MODELS` (list of OpenRouter model identifiers)
-- Contains `CHAIRMAN_MODEL` (model that synthesizes final answer)
-- Uses environment variable `OPENROUTER_API_KEY` from `.env`
+- Contains `COUNCIL_MODELS` (list of model configurations with provider)
+- Contains `CHAIRMAN_MODEL` (model config that synthesizes final answer)
+- Model configs are dicts: `{"model": "gpt-4o", "provider": "openai"}`
+- Supported providers: `openai`, `anthropic`, `google`, `xai`, `openrouter`
+- API keys loaded from environment variables (see Environment Variables section)
 - Backend runs on **port 8001** (NOT 8000 - user had another app on 8000)
 
-**`openrouter.py`**
-- `query_model()`: Single async model query
+**`llm_client.py`**
+- `query_model(model_config, messages)`: Routes to appropriate provider
 - `query_models_parallel()`: Parallel queries using `asyncio.gather()`
+- `query_openrouter()`: Direct OpenRouter API calls (httpx)
+- `query_litellm()`: Direct provider API calls via LiteLLM
 - Returns dict with 'content' and optional 'reasoning_details'
 - Graceful degradation: returns None on failure, continues with successful responses
 
@@ -93,7 +97,8 @@ This strict format allows reliable parsing while still getting thoughtful evalua
 
 ### De-anonymization Strategy
 - Models receive: "Response A", "Response B", etc.
-- Backend creates mapping: `{"Response A": "openai/gpt-5.1", ...}`
+- Backend creates mapping: `{"Response A": "openai/gpt-4o", ...}` (using display names)
+- Display names are formatted as `provider/model` (e.g., "google/gemini-2.0-flash")
 - Frontend displays model names in **bold** for readability
 - Users see explanation that original evaluation used anonymous labels
 - This prevents bias while maintaining transparency
@@ -123,7 +128,39 @@ All backend modules use relative imports (e.g., `from .config import ...`) not a
 All ReactMarkdown components must be wrapped in `<div className="markdown-content">` for proper spacing. This class is defined globally in `index.css`.
 
 ### Model Configuration
-Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The current default is Gemini as chairman per user preference.
+Models are configured in `backend/config.py` as dicts with `model` and `provider` fields:
+
+```python
+COUNCIL_MODELS = [
+    {"model": "gpt-4o", "provider": "openai"},           # Direct via LiteLLM
+    {"model": "gemini-2.0-flash", "provider": "google"}, # Direct via LiteLLM
+    {"model": "claude-sonnet-4-20250514", "provider": "anthropic"},  # Direct via LiteLLM
+    {"model": "grok-2", "provider": "xai"},              # Direct via LiteLLM
+]
+
+CHAIRMAN_MODEL = {"model": "gemini-2.0-flash", "provider": "google"}
+```
+
+For OpenRouter models, use `"provider": "openrouter"` with the full model path:
+```python
+{"model": "openai/gpt-4o", "provider": "openrouter"}
+```
+
+### Environment Variables
+Required API keys in `.env`:
+
+```bash
+# OpenRouter (optional, for openrouter provider)
+OPENROUTER_API_KEY=sk-or-...
+
+# Direct API keys (for litellm providers)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=...
+XAI_API_KEY=xai-...
+```
+
+Only set the keys for providers you're using.
 
 ## Common Gotchas
 
@@ -140,10 +177,11 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 - Model performance analytics over time
 - Custom ranking criteria (not just accuracy/insight)
 - Support for reasoning models (o1, etc.) with special handling
+- Add more LiteLLM providers (Mistral, Cohere, etc.)
 
 ## Testing Notes
 
-Use `test_openrouter.py` to verify API connectivity and test different model identifiers before adding to council. The script tests both streaming and non-streaming modes.
+Test API connectivity by running the backend and sending a test query. LiteLLM handles provider-specific API formatting automatically.
 
 ## Data Flow Summary
 
