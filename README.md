@@ -32,29 +32,43 @@ npm install
 cd ..
 ```
 
-### 2. Configure API Key
+### 2. Configure API Keys
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root with the API keys for the providers you want to use:
 
 ```bash
+# Direct API keys (for openai, anthropic, google, xai providers)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=...
+XAI_API_KEY=xai-...
+
+# OpenRouter (optional, for openrouter provider)
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
-Get your API key at [openrouter.ai](https://openrouter.ai/). Make sure to purchase the credits you need, or sign up for automatic top up.
+You only need to set the keys for the providers you're using. Get API keys from the respective provider websites. For OpenRouter, visit [openrouter.ai](https://openrouter.ai/).
 
 ### 3. Configure Models (Optional)
 
-Edit `backend/config.py` to customize the council:
+Edit `backend/config.py` to customize the council. Models are configured as dicts with `model` and `provider` fields:
 
 ```python
 COUNCIL_MODELS = [
-    "openai/gpt-5.1",
-    "google/gemini-3-pro-preview",
-    "anthropic/claude-sonnet-4.5",
-    "x-ai/grok-4",
+    {"model": "gpt-4o", "provider": "openai"},
+    {"model": "gemini-2.0-flash", "provider": "google"},
+    {"model": "claude-sonnet-4-20250514", "provider": "anthropic"},
+    {"model": "grok-2", "provider": "xai"},
 ]
 
-CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
+CHAIRMAN_MODEL = {"model": "gemini-2.0-flash", "provider": "google"}
+```
+
+Supported providers: `openai`, `anthropic`, `google`, `xai`, `openrouter`
+
+For OpenRouter models, use `"provider": "openrouter"` with the full model path:
+```python
+{"model": "openai/gpt-4o", "provider": "openrouter"}
 ```
 
 ## Running the Application
